@@ -7,10 +7,13 @@ from base64 import b64decode
 from urllib.parse import urlencode
 from twilio.rest import Client
 from datetime import datetime
+from dateutil.parser import parse
+from datetime import timedelta
+
+dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
 
 def decrypt(cipher_text):
-
     """ Decrypts KMS encrypted text """
     return boto3.client('kms').decrypt(CiphertextBlob=b64decode(cipher_text))[
         u'Plaintext'].decode()
@@ -18,7 +21,6 @@ def decrypt(cipher_text):
 
 def fetch_lambda_invocation_timestamp():
     """ Fetch the last invocation timestamp for this lambda function """
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('lambda_invocation_logs')
 
     try:
@@ -30,14 +32,13 @@ def fetch_lambda_invocation_timestamp():
     except ClientError as e:
         print(e.response['Error']['Message'])
     else:
-        item = response['Item']
-        return item['invocation_timestamp_utc']
-
+        if 'Item' in response:
+            item = response['Item']
+            return item['invocation_timestamp_utc']
 
 
 def update_lambda_invocation_timestamp():
     """ Updates the timestamp for this lambda function in DynamoDB """
-    dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
     table = dynamodb.Table('lambda_invocation_logs')
 
     table.put_item(
@@ -55,9 +56,7 @@ ALERT_PHONE = decrypt(os.environ['ALERT_PHONE'])
 TWILIO_PHONE = decrypt(os.environ['TWILIO_PHONE'])
 
 
-def handler(event, context):
-    last_invocation_utc = fetch_lambda_invocation_timestamp()
-
+def call_with_twilio():
     client = Client(
         TWILIO_ACCONT,
         TWILIO_TOKEN,
@@ -70,5 +69,18 @@ def handler(event, context):
                                    })),
                                )
     print(call.sid)
+
+
+def handler(event, context):
+    last_invocation_utc = fetch_lambda_invocation_timestamp()
+
+    if last_invocation_utc != None:
+        now = datetime.utcnow()
+        delta = now - parse(last_invocation_utc)
+
+        if delta.seconds >= 50:
+            call_with_twilio()
+    else:
+        call_with_twilio()
 
     update_lambda_invocation_timestamp()
