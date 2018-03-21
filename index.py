@@ -72,15 +72,16 @@ def call_with_twilio():
 
 
 def handler(event, context):
-    last_invocation_utc = fetch_lambda_invocation_timestamp()
+    try:
+        last_invocation_utc = fetch_lambda_invocation_timestamp()
 
-    if last_invocation_utc != None:
-        now = datetime.utcnow()
-        delta = now - parse(last_invocation_utc)
+        if last_invocation_utc != None:
+            now = datetime.utcnow()
+            delta = now - parse(last_invocation_utc)
 
-        if delta.seconds >= 50:
+            if delta.seconds >= 50:
+                call_with_twilio()
+        else:
             call_with_twilio()
-    else:
-        call_with_twilio()
-
-    update_lambda_invocation_timestamp()
+    finally:
+        update_lambda_invocation_timestamp()
