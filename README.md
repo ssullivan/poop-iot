@@ -20,3 +20,12 @@ zip -r poop-iot.zip *
 pip insall make-lambda-package
 make-lambda-package --requirements-file=requirements.txt .
 ```
+
+## Configure Lambda Environment
+
+These are the environment variables you will need to define. It is expected that they have been encrypted with your KMS key.
+
+* TWILIO_ACCONT 
+* TWILIO_TOKEN
+* ALERT_PHONE - this is the phone number to call when the lambda is invoked
+* TWILIO_PHONE - this is your twilio phone number to call from
